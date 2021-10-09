@@ -116,8 +116,7 @@ const favoriteContact = async(req, res, next) => {
       err.status = 400
       throw err
     }
-    const contact = await service.updateStatusContact(contactId, { favorite })
-    console.log(req.body)
+    const contact = await service.updateStatusContact(contactId, favorite, { new: true })
     if (!contact) {
       const err = new Error('Not found')
       err.code = 404
