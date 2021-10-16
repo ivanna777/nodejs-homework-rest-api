@@ -1,5 +1,5 @@
 const service = require('../model/index')
-const { contactJoiSchema, updateFavoriteJoiSchema } = require('../model/schema')
+const { contactJoiSchema, updateFavoriteJoiSchema } = require('../model/contactSchema')
 
 const getAll = async (req, res, next) => {
   try {
