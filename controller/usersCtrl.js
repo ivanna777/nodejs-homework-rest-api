@@ -1,3 +1,7 @@
+const gravatar = require('gravatar')
+const Jimp = require('jimp')
+const path = require('path')
+const fs = require('fs/promises')
 const { User } = require('../model/userSchema')
 const { Conflict, BadRequest, Unauthorized } = require('http-errors')
 
@@ -9,6 +13,8 @@ const register = async(req, res) => {
   }
   const newUser = new User({ email })
   newUser.setPassword(password)
+  const avatar = gravatar.url(email)
+  newUser.avatarURL = avatar
   await newUser.save()
   res.status(201).json({
     status: 'success',
@@ -25,11 +31,9 @@ const login = async(req, res) => {
   if (!user || !user.comparePassword(password)) {
     throw new BadRequest('Email or password is wrong')
   }
-  // const { _id } = user
   const token = user.createToken()
   await User.findByIdAndUpdate(user._id, { token })
 
-  // const token = 'hgdjhsdjkfjsdkl'
   res.json({
     status: 'success',
     code: 200,
@@ -64,9 +68,36 @@ const currentUser = async(req, res) => {
   })
 }
 
+const changeAvatar = async(req, res) => {
+  const avatarsDir = path.join(__dirname, '../', 'public/avatars')
+  const { path: tmpStorage, originalname } = req.file
+  try {
+    const originalAvatar = await Jimp.read(tmpStorage)
+    await originalAvatar.resize(250, 250).writeAsync(tmpStorage)
+    const [extention] = originalname.split('.').reverse()
+    const renameAvatar = `avatar_${req.user._id}.${extention}`
+    const renameStorage = path.join(avatarsDir, renameAvatar)
+    await fs.rename(tmpStorage, renameStorage)
+    const avatar = path.join('/avatars', renameAvatar)
+    const { avatarURL } = await User.findByIdAndUpdate(req.user._id, { avatarURL: avatar }, { new: true })
+
+    res.send.json({
+      status: 'success',
+      code: 200,
+      data: {
+        avatarURL
+      }
+    })
+  } catch (error) {
+    await fs.unlink(tmpStorage)
+    console.log(error)
+  }
+}
+
 module.exports = {
   register,
   login,
   logout,
-  currentUser
+  currentUser,
+  changeAvatar
 }

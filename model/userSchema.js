@@ -18,6 +18,9 @@ const userSchema = Schema({
     enum: ['starter', 'pro', 'business'],
     default: 'starter'
   },
+  avatarURL: {
+    type: String
+  },
   token: {
     type: String,
     default: null,
@@ -44,7 +47,8 @@ userSchema.methods.createToken = function() {
 const userJoiSchema = Joi.object({
   password: Joi.string().required(),
   email: Joi.string().required(),
-  subscription: Joi.string()
+  subscription: Joi.string(),
+  avatarURL: Joi.string(),
 })
 
 const User = model('user', userSchema)
