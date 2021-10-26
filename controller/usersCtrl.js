@@ -2,8 +2,10 @@ const gravatar = require('gravatar')
 const Jimp = require('jimp')
 const path = require('path')
 const fs = require('fs/promises')
+const { v4: uuidv4 } = require('uuid')
 const { User } = require('../model/userSchema')
-const { Conflict, BadRequest, Unauthorized } = require('http-errors')
+const { Conflict, BadRequest, Unauthorized, NotFound } = require('http-errors')
+const sendEmail = require('../helpers/sendEmail')
 
 const register = async(req, res) => {
   const { email, password } = req.body
@@ -15,7 +17,18 @@ const register = async(req, res) => {
   newUser.setPassword(password)
   const avatar = gravatar.url(email)
   newUser.avatarURL = avatar
+  const verifyToken = uuidv4()
+  newUser.verificationToken = verifyToken
   await newUser.save()
+
+  const msg = {
+    to: email,
+    subject: 'Подтверждение регистрации',
+    html: `<a href="http://localhost:3000/api/users/verify/${verifyToken}">Подтверждение регистрации</a>`
+  }
+
+  await sendEmail(msg)
+
   res.status(201).json({
     status: 'success',
     code: 201,
@@ -25,11 +38,47 @@ const register = async(req, res) => {
   })
 }
 
+const verify = async(req, res) => {
+  const { verificationToken } = req.params
+  const user = await User.findOne({ verificationToken })
+  if (!user) {
+    throw new NotFound('User not found')
+  }
+  await User.findByIdAndUpdate(user._id, { verificationToken: null, verify: true })
+
+  res.json({
+    status: 'success',
+    code: 200,
+    message: 'Verification successful'
+  })
+}
+
+const secondVerify = async(req, res) => {
+  const { email } = req.body
+  const user = await User.findOne({ email })
+  if (!email) {
+    throw new BadRequest('missing required field email')
+  }
+  if (!user.verify) {
+    const msg = {
+      to: email,
+      subject: 'Подтверждение регистрации',
+      html: `<a href="http://localhost:3000/api/users/verify/${user.verificationToken}">Подтверждение регистрации</a>`
+    }
+    console.log('send msg')
+    await sendEmail(msg)
+  }
+  throw new BadRequest('Verification has already been passed')
+}
+
 const login = async(req, res) => {
   const { email, password } = req.body
   const user = await User.findOne({ email })
   if (!user || !user.comparePassword(password)) {
     throw new BadRequest('Email or password is wrong')
+  }
+  if (!user.verify) {
+    throw new NotFound('Don`t verify email')
   }
   const token = user.createToken()
   await User.findByIdAndUpdate(user._id, { token })
@@ -96,6 +145,8 @@ const changeAvatar = async(req, res) => {
 
 module.exports = {
   register,
+  verify,
+  secondVerify,
   login,
   logout,
   currentUser,
