@@ -9,6 +9,10 @@ const ctrl = require('../controller/usersCtrl')
 
 router.post('/signup', validation(userJoiSchema), ctrlWrapper(ctrl.register))
 
+router.get('/verify/:verificationToken', ctrlWrapper(ctrl.verify))
+
+router.post('/verify', ctrlWrapper(ctrl.secondVerify))
+
 router.post('/login', validation(userJoiSchema), ctrlWrapper(ctrl.login))
 
 router.get('/logout', authentication, ctrlWrapper(ctrl.logout))
